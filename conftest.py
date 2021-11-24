@@ -2,7 +2,9 @@ import pytest
 
 import pytest
 from selenium import webdriver
-from selenium.webdriver import DesiredCapabilities
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.chrome.options import Options
 
 from pages.home_page import HomePage
 from pages.elements_page import ElementsPage
@@ -14,29 +16,20 @@ def pytest_addoption(parser):
 
 def change_browser(request):
     browser_name = request.config.getoption("--browser")
-    options = None
     if browser_name == "chrome":
-        desired_capabilities = DesiredCapabilities.CHROME
-        options = webdriver.ChromeOptions()
-        options.add_argument("--disable-dev-shm-usage")
-        port = '4445'
-
+        driver = webdriver.Chrome(ChromeDriverManager().install())
     elif browser_name == "firefox":
-        desired_capabilities = DesiredCapabilities.FIREFOX
-        port = '4446'
+        driver = webdriver.Firefox(executable_path=GeckoDriverManager().install())
     else:
         raise ValueError("Unrecognized browser {}".format(browser_name))
-    driver = webdriver.Remote(command_executor=f"http://localhost:{port}/wd/hub",
-                              desired_capabilities=desired_capabilities,
-                              options=options)
     return driver
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(autouse=True, scope='session')
 def browser(request):
-    browser = change_browser(request)
-    yield browser
-    browser.quit()
+    driver = change_browser(request)
+    yield driver
+    driver.quit()
 
 
 @pytest.fixture
@@ -47,7 +40,7 @@ def home_page(browser):
     return home_page
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def elements_page(browser):
     elements_page_url = "https://demoqa.com/elements"
     elements_page = ElementsPage(browser, elements_page_url)
